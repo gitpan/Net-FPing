@@ -1,0 +1,137 @@
+NAME
+    Net::FPing - quickly ping a large number of hosts
+
+SYNOPSIS
+     use Net::FPing;
+
+DESCRIPTION
+    This module was written for a single purpose only: sendinf ICMP EHCO
+    REQUEST packets as quickly as possible to a large number of hosts
+    (thousands to millions).
+
+    It employs a sending thread and is fully event-driven (using AnyEvent),
+    so you have to run an event model supported by AnyEvent to use this
+    module.
+
+FUNCTIONS
+    Net::FPing::ipv4_supported
+        Returns true if IPv4 is supported in this module and on this system.
+
+    Net::FPing::ipv6_supported
+        Returns true if IPv6 is supported in this module and on this system.
+
+    Net::FPing::icmp4_pktsize
+        Returns the number of bytes each IPv4 ping packet has.
+
+    Net::FPing::icmp6_pktsize
+        Returns the number of bytes each IPv4 ping packet has.
+
+    Net::FPing::icmp_ping [ranges...], $send_interval, $payload, \&callback
+        Ping the given IPv4 address ranges. Each range is an arrayref of the
+        form "[lo, hi, interval]", where "lo" and "hi" are octet strings
+        with either 4 octets (for IPv4 addresses) or 16 octets (for IPV6
+        addresses), representing the lowest and highest address to ping (you
+        can convert a dotted-quad IPv4 address to this format by using
+        "inet_aton $address". The range "interval" is the minimum time in
+        seconds between pings to the given range. If omitted, defaults to
+        $send_interval.
+
+        The $send_interval is the minimum interval between sending any two
+        packets and is a way to make an overall rate limit. If omitted,
+        pings will be send as fast as possible.
+
+        The $payload is a 32 bit unsigned integer given as the ICMP ECHO
+        REQUEST ident and sequence numbers (in unspecified order :).
+
+        The request will be queued and all requests will be served by a
+        background thread in order. When all ranges have been pinged, the
+        "callback" will be called.
+
+        Algorithm: Each range has an associated "next time to send packet"
+        time. The algorithm loops as long as there are ranges with hosts to
+        be pinged and always serves the range with the most urgent packet
+        send time. It will at most send one packet every $send_interval
+        seconds.
+
+        This will ensure that pings to the same range are nicely interleaved
+        with other ranges - this can help reduce per-subnet bandwidth while
+        maintaining an overall high packet rate.
+
+        The algorithm to send each packet is O(log n) on the number of
+        ranges, so even a large number of ranges (many thousands) is
+        managable.
+
+        No storage is allocated per address.
+
+        Performance: On my 2 GHz Opteron system with a pretty average nvidia
+        gigabit network card I can ping around 60k to 200k adresses per
+        second, depending on routing decisions.
+
+        Example: ping 10.0.0.1-10.0.0.15 with at most 100 packets/s, and
+        11.0.0.1-11.0.255.255 with at most 1000 packets/s. Do not, however,
+        exceed 1000 packets/s overall:
+
+           my $done = AnyEvent->condvar;
+
+           Net::FPing::icmp_ping
+              [v10.0.0.1, v10.0.0.15, .01],
+              [v11.0.0.1, v11.0.255.255, .001],
+              .001, 0x12345678,
+              sub {
+                 warn "all ranges pinged\n";
+                 $done->broadcast;
+              }
+           ;
+
+           $done->wait;
+
+    Net::FPing::register_cb \&cb
+        Register a callback that is called for every received ping reply
+        (regardless of whether a ping is still in process or not and
+        regardless of whether the reply is actually a reply ot a ping sent
+        earlier).
+
+        The code reference gets a single parameter - an arrayref with an
+        entry for each received packet (replies are beign batched for
+        greater efficiency). Each packet is represented by an arrayref with
+        three members: the source address (an octet string of either 4
+        (IPv4) or 16 (IPv6) octets length), the payload as passed to
+        "icmp_ping" and the round trip time in seconds.
+
+        Example: a single ping reply with payload of 1 from "::1" gets
+        passed like this:
+
+           [ [
+             "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1",
+             "0.000280141830444336",
+             1
+           ] ]
+
+        Example: ping replies for 127.0.0.1 and 127.0.0.2, with a payload of
+        0x12345678:
+
+           [
+              [
+                "\177\0\0\1",
+                "0.00015711784362793",
+                305419896
+              ],
+              [
+                "\177\0\0\2",
+                "0.00090184211731",
+                305419896
+              ]
+           ]
+
+    Net::FPing::unregister_cb \&cb
+        Unregister the callback again (make sure you pass the same
+        codereference as to "register_cb").
+
+AUTHOR
+     Marc Lehmann <schmorp@schmorp.de>
+     http://home.schmorp.de/
+
+AUTHOR
+     This software is distributed under the GENERAL PUBLIC LICENSE,
+     version 2 or any later.
+

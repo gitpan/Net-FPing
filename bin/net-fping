@@ -1,0 +1,70 @@
+#!/opt/bin/perl
+
+use Socket;
+use Getopt::Long;
+use Net::FPing;
+use AnyEvent;
+
+use strict;
+
+my $ipv6 = eval { require Socket6; 1 };
+
+Getopt::Long::Configure ("bundling", "no_ignore_case");
+
+my $count = 1;
+my $rate  = 0;
+my $wait  = 0.25;
+my $quiet = 0;
+
+GetOptions (
+   "count|c=i" => \$count,
+   "rate|r=n"  => \$rate,
+   "wait|w=n"  => \$wait,
+   "quiet|q"   => \$quiet,
+) or exit 1;
+
+my @ranges;
+
+for (@ARGV) {
+   my ($lo, $hi, $kbps) = split /,/;
+   my $pktsz;
+
+   $hi = $lo unless $hi;
+
+   if ($lo =~ /:/) {
+      # ipv6
+      $ipv6 or die "Socket6 module missing, no ipv6 support available.\n";
+      $lo = Socket6::inet_pton (&AF_INET6, $lo);
+      $hi = Socket6::inet_pton (&AF_INET6, $hi);
+      $pktsz = Net::FPing::icmp6_pktsize;
+   } else {
+      $lo = inet_aton $lo;
+      $hi = inet_aton $hi;
+      $pktsz = Net::FPing::icmp4_pktsize;
+   }
+
+   push @ranges, [$lo, $hi, $kbps && $pktsz / ($kbps * 1000)];
+}
+
+Net::FPing::register_cb {
+   for (@{$_[0]}) {
+      printf "%s %d %g\n",
+         (4 == length $_->[0] ? inet_ntoa $_->[0] : Socket6::inet_ntop (&AF_INET6, $_->[0])),
+         $_->[2],
+         $_->[1];
+   }
+} unless $quiet;
+
+for (0 .. $count - 1) {
+   my $done = AnyEvent->condvar;
+   Net::FPing::icmp_ping \@ranges, $rate && 1 / $rate, $_, sub { $done->broadcast };
+   $done->wait;
+}
+
+{
+   my $done = AnyEvent->condvar;
+   my $wait_w = AnyEvent->timer (after => $wait, cb => sub { $done->broadcast });
+   $done->wait;
+}
+
+
