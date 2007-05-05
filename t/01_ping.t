@@ -1,3 +1,5 @@
+BEGIN { $> and do { print "1..0 # skipped: will only run ping tests as root\n"; exit } }
+
 print "1..4\n";
 
 use strict;

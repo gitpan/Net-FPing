@@ -105,6 +105,8 @@ typedef struct {
 
 #define MAGIC 0xca4c
 
+static uint16_t magic;
+
 typedef struct {
   uint8_t type, code;
   uint16_t cksum;
@@ -192,8 +194,8 @@ ping_proc (void *unused)
       //TODO: bind to source address
 
       pkt.code    = 0;
-      pkt.id      = (uint16_t)MAGIC;
-      pkt.seq     = (uint16_t)~MAGIC;
+      pkt.id      = (uint16_t)magic;
+      pkt.seq     = (uint16_t)~magic;
       pkt.payload = req->payload;
 
       tstamp now = NOW ();
@@ -407,6 +409,7 @@ BOOT:
   HV *stash = gv_stashpv ("Net::FPing", 1);
 
   cbs = get_av ("Net::FPing::CB", 1);
+  magic = getpid () ^ MAGIC;
 
   boot ();
 
@@ -567,8 +570,8 @@ _recv_icmp4 (...)
             PKT *pkt = (PKT *)(buf + hdrlen);
 
             if (pkt->type != ICMP4_ECHO_REPLY
-                || pkt->id  != (uint16_t) MAGIC
-                || pkt->seq != (uint16_t)~MAGIC
+                || pkt->id  != (uint16_t) magic
+                || pkt->seq != (uint16_t)~magic
                 || !isnormal (pkt->stamp))
               continue;
 
@@ -603,8 +606,8 @@ _recv_icmp6 (...)
 
             if (!res_av
                 || pkt.type != ICMP6_ECHO_REPLY
-                || pkt.id  != (uint16_t) MAGIC
-                || pkt.seq != (uint16_t)~MAGIC
+                || pkt.id  != (uint16_t) magic
+                || pkt.seq != (uint16_t)~magic
                 || !isnormal (pkt.stamp))
               continue;
 
