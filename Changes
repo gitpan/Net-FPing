@@ -1,5 +1,10 @@
 Revision history for Perl extension Net::FPing
 
+0.9   Tue May 15 21:24:22 CEST 2007
+	- document net-fping output format.
+        - count iterations from 1 in net-fping.
+        - clarified license.
+
 0.02  Sun May  6 01:16:52 CEST 2007
         - randomise the magic number used a bit so multiple net-fpings
           running on the same host do not see each others' replies.

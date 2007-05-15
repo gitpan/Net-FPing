@@ -26,6 +26,11 @@ Note:
    * you should almost always specify a packet rate and possible range bandwidths,
      as the default is to ping as fast as possible.
 
+Output:
+   For each ping reply received, net-fping will output a single line with
+   three space-separated columns, the IP address, the iteration count and
+   the round trip time in seconds (as a float).
+
 Example:
    ping 10.0.0.1 .. 10.0.0.254 with at most 8 kilobytes/second and
    11.0.0.1 .. 11.0.0.254 as fast as possible, never exceeding 1000 packets/s,
@@ -87,7 +92,7 @@ Net::FPing::register_cb {
    }
 } unless $quiet;
 
-for (0 .. $count - 1) {
+for (1 .. $count) {
    my $done = AnyEvent->condvar;
    Net::FPing::icmp_ping \@ranges, $rate && 1 / $rate, $_, sub { $done->broadcast };
    $done->wait;

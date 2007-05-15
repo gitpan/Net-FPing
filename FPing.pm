@@ -29,7 +29,7 @@ no warnings;
 use AnyEvent;
 
 BEGIN {
-   our $VERSION = '0.02';
+   our $VERSION = '0.9';
    our @ISA = qw(Exporter);
 
    require Exporter;
@@ -215,8 +215,8 @@ sub unregister_cb($) {
 
 =head1 AUTHOR
 
- This software is distributed under the GENERAL PUBLIC LICENSE,
- version 2 or any later.
+ This software is distributed under the GENERAL PUBLIC LICENSE, version 2
+ or any later version or, at your option, the Artistic License.
 
 =cut
 
